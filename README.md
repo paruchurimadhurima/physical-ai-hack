@@ -68,6 +68,21 @@ python main.py --audio tracks/song.mp3 --port COM3
 
 ---
 
+## 🏗️ How It's Built & Technical Design
+
+BeatSync SO-101 connects high-level music feature analysis with low-level smart servo kinematics:
+1. **Audio Feature Extraction (`src/audio_processor.py`)**: Uses `librosa` to compute normalized onset strength envelopes, tempo tracking ($BPM$), and spectral centroids (sub-bass kick vs treble hi-hat separation) to generate a timestamped sequence of `BeatEvent` objects with drop detection.
+2. **Kinematic Choreography Engine (`src/robot_controller.py`)**: A dynamic state machine selects expressive 6-DOF poses (`POSES`) conditioned on musical intensity, downbeats, and drops.
+3. **Smooth Trajectory LERP**: An exponential linear interpolation filter running at 100 Hz prevents mechanical stress and guarantees fluid, lifelike robotic dancing.
+4. **Dual Bus Support**: Seamlessly transitions between physical Feetech STS3215 servos (`LeRobotFeetechBus`) and an in-memory virtual bus (`MockRobotBus`).
+
+For deep architectural documentation, sequence diagrams, and model guides:
+- 📖 [System Architecture & Sequence Diagrams](docs/ARCHITECTURE.md)
+- 🤖 [Developer & AI Agent Context Guide](docs/DEVELOPER_GUIDE.md) (Extension recipes, safety rules, and pose definitions)
+- 🏆 [Hackathon Rules & Schedule](docs/HACK-INFO.md)
+
+---
+
 ## 📂 Repository Structure
 
 ```
@@ -75,13 +90,19 @@ python main.py --audio tracks/song.mp3 --port COM3
 │   └── skills/
 │       └── dance-controller/
 │           └── SKILL.md         # Native Antigravity Skill Definition
+├── docs/
+│   ├── ARCHITECTURE.md          # Technical architecture & sequence diagrams
+│   ├── DEVELOPER_GUIDE.md       # AI Model & Developer context and recipes
+│   └── HACK-INFO.md             # Hackathon rules, schedule & judging
 ├── src/
 │   ├── __init__.py
-│   ├── audio_processor.py      # Librosa beat, onset, and section analyzer
-│   ├── robot_controller.py     # Feetech motor bus & choreography engine
-│   └── visualizer.py           # Rich terminal telemetry and HUD
-├── tracks/                     # Audio tracks folder
-├── main.py                     # Execution entrypoint
-├── requirements.txt            # Python dependencies
+│   ├── audio_processor.py       # Librosa beat, onset, and section analyzer
+│   ├── robot_controller.py      # Feetech motor bus & choreography engine
+│   └── visualizer.py            # Rich terminal telemetry and HUD
+├── tracks/                      # Audio tracks folder
+├── DEVELOPMENT.md               # Quick development entrypoint
+├── main.py                      # Execution entrypoint
+├── requirements.txt             # Python dependencies
 └── README.md
 ```
+
