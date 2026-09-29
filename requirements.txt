@@ -5,3 +5,5 @@ numpy>=1.24.0
 scipy>=1.10.0
 pyserial>=3.5
 rich>=13.0.0
+sounddevice>=0.5.0
+matplotlib>=3.8.0
