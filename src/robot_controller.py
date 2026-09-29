@@ -403,7 +403,8 @@ class SO101Dancer:
         beat_events: List[Any],
         bpm: float,
         duration: float,
-        audio_playback_fn: Optional[Any] = None
+        audio_playback_fn: Optional[Any] = None,
+        audio_stop_fn: Optional[Any] = None,
     ) -> None:
         """Executes the synchronized dance routine with continuous sub-beat tracking and live HUD."""
         # Convert simple timestamps to BeatEvent objects if necessary
@@ -509,6 +510,11 @@ class SO101Dancer:
         except KeyboardInterrupt:
             print("\n[INFO] Dance interrupted by user.")
         finally:
+            if audio_stop_fn:
+                try:
+                    audio_stop_fn()
+                except Exception:
+                    pass
             print(f"\n[INFO] Gliding in {GLIDE_S:.1f}s back to safe home position...")
             self.glide(q_prev, home_pose, GLIDE_S)
             self.bus.disconnect()

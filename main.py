@@ -13,29 +13,37 @@ from src.audio_processor import AudioBeatProcessor
 from src.robot_controller import SO101Dancer
 
 
-def play_audio_background(audio_path: str):
-    """Plays audio in the background in sync with the robot dancer."""
-    def _worker():
-        try:
-            if sys.platform == "win32" and audio_path.lower().endswith(".wav"):
-                import winsound
-                winsound.PlaySound(audio_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
-            else:
-                # Cross-platform / MP3 fallback using soundfile + sounddevice or simple powershell media player
-                if sys.platform == "win32":
-                    import subprocess
-                    ps_cmd = (
-                        f'(New-Object Media.SoundPlayer "{os.path.abspath(audio_path)}").PlaySync()'
-                        if audio_path.lower().endswith(".wav")
-                        else f'Add-Type -AssemblyName presentationCore; $p = New-Object System.Windows.Media.MediaPlayer; $p.Open([System.Uri]"{os.path.abspath(audio_path)}"); $p.Play(); Start-Sleep -s 60'
-                    )
-                    subprocess.Popen(["powershell", "-c", ps_cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
-            # Audio playback is optional, don't crash dance routine
-            pass
+def setup_audio_player(audio_path: str, volume: float = 0.8):
+    """Sets up synchronized, low-latency background audio playback using sounddevice & soundfile."""
+    try:
+        import sounddevice as sd
+        import soundfile as sf
+        audio_data, sr = sf.read(audio_path, dtype="float32", always_2d=True)
+        audio_data = audio_data * max(0.0, min(1.0, volume))
 
-    t = threading.Thread(target=_worker, daemon=True)
-    t.start()
+        def play():
+            try:
+                sd.play(audio_data, sr)
+            except Exception as e:
+                print(f"[Warning] Audio playback failed: {e}")
+
+        def stop():
+            try:
+                sd.stop()
+            except Exception:
+                pass
+
+        return play, stop
+    except Exception as e:
+        print(f"[Warning] sounddevice unavailable ({e}). Using system audio fallback.")
+        def fallback_play():
+            try:
+                if sys.platform == "win32" and audio_path.lower().endswith(".wav"):
+                    import winsound
+                    winsound.PlaySound(audio_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+            except Exception:
+                pass
+        return fallback_play, lambda: None
 
 
 def main():
@@ -89,6 +97,12 @@ def main():
         default=220.0,
         help="Maximum joint velocity limit in deg/s (default: 220)"
     )
+    parser.add_argument(
+        "--volume",
+        type=float,
+        default=0.8,
+        help="Playback volume level between 0.0 and 1.0 (default: 0.8)"
+    )
 
     args = parser.parse_args()
 
@@ -118,17 +132,19 @@ def main():
         offset_ms=args.offset_ms,
     )
 
-    # Audio playback callback
-    audio_callback = None
+    # Low-latency synchronized audio player callbacks
+    play_fn, stop_fn = None, None
     if not args.no_sound:
-        audio_callback = lambda: play_audio_background(audio_path)
+        print(f"🔊 Speaker playback enabled (Volume: {int(args.volume * 100)}%).")
+        play_fn, stop_fn = setup_audio_player(audio_path, volume=args.volume)
 
-    # Execute dance routine
+    # Execute dance routine in sync with audio
     dancer.play_dance(
         beat_events=beat_events,
         bpm=bpm,
         duration=processor.duration,
-        audio_playback_fn=audio_callback
+        audio_playback_fn=play_fn,
+        audio_stop_fn=stop_fn,
     )
 
 
