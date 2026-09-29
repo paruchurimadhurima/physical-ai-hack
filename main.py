@@ -77,6 +77,18 @@ def main():
         default=None,
         help="Override detected BPM with fixed tempo"
     )
+    parser.add_argument(
+        "--offset-ms",
+        type=float,
+        default=70.0,
+        help="Anticipatory latency compensation in ms so motion peaks hit on drum beats (default: 70)"
+    )
+    parser.add_argument(
+        "--speed-limit",
+        type=float,
+        default=220.0,
+        help="Maximum joint velocity limit in deg/s (default: 220)"
+    )
 
     args = parser.parse_args()
 
@@ -98,8 +110,13 @@ def main():
     bpm = args.bpm if args.bpm else detected_bpm
     print(f"⚡ Detected BPM: {bpm:.1f} | Duration: {processor.duration:.2f}s | Total Beats: {len(beat_events)}")
 
-    # Initialize Dancer
-    dancer = SO101Dancer(port=args.port, force_sim=args.sim)
+    # Initialize Dancer with high-clarity trajectory engine
+    dancer = SO101Dancer(
+        port=args.port,
+        force_sim=args.sim,
+        speed_limit=args.speed_limit,
+        offset_ms=args.offset_ms,
+    )
 
     # Audio playback callback
     audio_callback = None

@@ -71,9 +71,9 @@ class DanceVisualizer:
 
         joint_ranges = {
             "shoulder_pan": (-90, 90, "deg"),
-            "shoulder_lift": (-60, 60, "deg"),
+            "shoulder_lift": (-110, 90, "deg"),
             "elbow_flex": (-90, 90, "deg"),
-            "wrist_flex": (-90, 90, "deg"),
+            "wrist_flex": (-90, 110, "deg"),
             "wrist_roll": (-90, 90, "deg"),
             "gripper": (0, 100, "%"),
         }

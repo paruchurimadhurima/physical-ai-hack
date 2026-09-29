@@ -9,8 +9,9 @@ This skill controls the Hugging Face / Feetech SO-101 (SO-ARM100) 6-DOF follower
 
 ## Overview
 - **Audio Processing**: Uses `librosa` to analyze audio files, computing BPM, onset envelopes, beat drop timestamps, and frequency energy bands (bass vs mid/treble).
-- **Choreography Engine**: Dynamically maps beat timing and musical intensity to 6-DOF joint angle keyframes (`shoulder_pan`, `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`, `gripper`).
-- **Hardware Bus & Simulation**: Direct control over Feetech STS3215 servos via `FeetechMotorsBus` with automatic serial port detection (`COMx` on Windows, `/dev/ttyUSB*` on Linux). Includes rich mock simulation if hardware is disconnected.
+- **Choreography Engine**: Continuous 32-point-per-beat trajectory playback using recorded motion loops (`moves/sway.json`, `moves/bounce.json`, `moves/snap.json`, `moves/bigwave.json`) with 1-beat smoothstep crossfading and anticipatory latency compensation (`--offset-ms`).
+- **Hardware Bus & Simulation**: Direct control over Feetech STS3215 servos via `FeetechMotorsBus` with automatic serial port detection (`COMx` on Windows, `/dev/ttyUSB*` on Linux). Includes rich 30 FPS mock simulation if hardware is disconnected.
+- **Hardware Diagnostics**: Read-only servo ping and voltage/temperature checks via `tools/servo_info.py`.
 
 ---
 
@@ -25,17 +26,20 @@ On Linux / macOS:
 ```bash
 ls /dev/ttyUSB* /dev/ttyACM*
 ```
-If no physical arm is plugged in, the controller automatically defaults to `--sim` (simulation) mode with a live terminal animation.
-
-### 2. Audio Beat Extraction & Dance Execution
-Run full audio analysis and dance routine:
+Run hardware bus diagnostics to verify servo communication, voltages, and temps:
 ```bash
-python main.py --audio tracks/song.mp3 --port COM3
+python tools/servo_info.py COM3
+```
+
+### 2. Audio Beat Extraction & High-Clarity Dance Execution
+Run full audio analysis and dance routine on hardware:
+```bash
+python main.py --audio inputs/pdoom.wav --port COM3 --offset-ms 70
 ```
 
 To run in Simulation / Visualizer mode (no hardware required):
 ```bash
-python main.py --audio tracks/song.mp3 --sim
+python main.py --audio inputs/pdoom.wav --sim
 ```
 
 To generate a sample beat track and test immediately:
@@ -43,20 +47,19 @@ To generate a sample beat track and test immediately:
 python main.py --demo --sim
 ```
 
-### 3. Poses & Joint Mapping
-The SO-101 uses 6 joints:
-| Joint Name | Range (deg) | Role in Dance |
-| :--- | :--- | :--- |
-| `shoulder_pan` | -90° to +90° | Base sway, left/right swing |
-| `shoulder_lift`| -60° to +60° | Vertical bobbing, body rise/fall |
-| `elbow_flex`   | -90° to +90° | Forearm rhythm, bounce accent |
-| `wrist_flex`   | -90° to +90° | Head/wrist nods, tempo accent |
-| `wrist_roll`   | -90° to +90° | Flairs, waving, dramatic drops |
-| `gripper`      | 0 (closed) to 100 (open) | Rhythmic claps, beat snaps |
+### 3. Move Loops & Joint Envelope
+The controller executes dense 32-point-per-beat recorded trajectories:
+| Move Loop | Beats | Style / Musical Role | Primary Joints |
+| :--- | :---: | :--- | :--- |
+| `sway` | 4 | Chill intro/verse, smooth hip sway | `shoulder_pan` (-61° to +36°) |
+| `bounce` | 4 | Groove rhythm, upbeat bounce | `elbow_flex` & `wrist_flex` |
+| `snap` | 4 | High energy, syncopated rolls & claps | `wrist_roll` & `gripper` (0–47%) |
+| `bigwave` | 8 | Climactic drops, dramatic full-body wave | Full 6-DOF vertical & pitch sweeps |
 
 ---
 
 ## Troubleshooting
 - **No serial port found**: Check USB connection on the U2D2 / Bus Linker adapter. Pass `--sim` to test choreography in software.
+- **Motion lags behind drum transients**: Increase `--offset-ms` (e.g. `--offset-ms 90`) to compensate for servo inertia.
 - **Permission denied on port (Linux)**: Run `sudo usermod -a -G dialout $USER` and replug USB.
-- **Audio sync drift**: Use `--bpm` override if the track has a fixed known tempo, or check onset energy threshold in `src/audio_processor.py`.
+
