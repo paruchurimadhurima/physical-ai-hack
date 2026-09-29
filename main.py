@@ -59,7 +59,14 @@ def main():
     parser.add_argument(
         "--demo",
         action="store_true",
-        help="Generate and run a punchy synth demo track with drops"
+        help="Generate and run a short 16s punchy synth demo track with drops"
+    )
+    parser.add_argument(
+        "--perf",
+        "--performance",
+        action="store_true",
+        dest="perf",
+        help="Generate and run a full 2-minute multi-section showcase performance track"
     )
     parser.add_argument(
         "--port",
@@ -108,7 +115,14 @@ def main():
 
     # Determine audio source
     audio_path = args.audio
-    if not audio_path or args.demo:
+    if args.perf:
+        perf_file = os.path.join("tracks", "demo_performance_2min.wav")
+        if not os.path.exists(perf_file):
+            print("[INFO] Generating 2-minute showcase performance track (126 BPM, drops & build)...")
+            audio_path = AudioBeatProcessor.generate_performance_track(perf_file)
+        else:
+            audio_path = perf_file
+    elif not audio_path or args.demo:
         demo_file = os.path.join("tracks", "demo_beat.wav")
         if not os.path.exists(demo_file) or args.demo:
             print("[INFO] Generating synthetic electronic demo track (120 BPM, drops & build)...")

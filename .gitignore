@@ -23,4 +23,3 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
-tracks/test*.wav

@@ -158,3 +158,133 @@ class AudioBeatProcessor:
 
         sf.write(output_path, audio, sr)
         return output_path
+
+    @staticmethod
+    def generate_performance_track(
+        output_path: str = "tracks/demo_performance_2min.wav",
+        duration_sec: float = 120.0,
+        bpm: float = 126.0,
+    ) -> str:
+        """Generates a full 2-minute multi-section electronic showcase track with chill, build-up, and drop sections."""
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        sr = 44100
+        total_samples = int(duration_sec * sr)
+        audio = np.zeros(total_samples, dtype=np.float32)
+        spb = 60.0 / bpm
+        total_beats = int(duration_sec / spb)
+
+        def add_kick(start_idx, punch=1.0, sub_heavy=False):
+            k_len = min(int(0.24 * sr), total_samples - start_idx)
+            if k_len <= 0: return
+            t = np.linspace(0, k_len / sr, k_len)
+            freq_start = 180 if punch > 1.0 else 150
+            freq_decay = 40 if sub_heavy else 30
+            freq = freq_start * np.exp(-freq_decay * t) + (42 if sub_heavy else 50)
+            env = np.exp(-12 * t)
+            click = 0.3 * np.exp(-120 * t) * np.sin(2 * np.pi * 1200 * t)
+            audio[start_idx:start_idx + k_len] += (0.85 * np.sin(2 * np.pi * freq * t) + click) * env * punch
+
+        def add_snare(start_idx, snappy=1.0):
+            s_len = min(int(0.18 * sr), total_samples - start_idx)
+            if s_len <= 0: return
+            t = np.linspace(0, s_len / sr, s_len)
+            noise = np.random.uniform(-1, 1, s_len)
+            tone = np.sin(2 * np.pi * 210 * t) * np.exp(-25 * t)
+            env = np.exp(-18 * t)
+            audio[start_idx:start_idx + s_len] += (0.65 * noise + 0.35 * tone) * env * snappy
+
+        def add_hihat(start_idx, vol=0.25, open_hat=False):
+            h_len = min(int((0.15 if open_hat else 0.04) * sr), total_samples - start_idx)
+            if h_len <= 0: return
+            t = np.linspace(0, h_len / sr, h_len)
+            noise = np.random.uniform(-1, 1, h_len)
+            env = np.exp((-15 if open_hat else -55) * t)
+            audio[start_idx:start_idx + h_len] += noise * env * vol
+
+        def add_synth_tone(start_idx, freq, length_sec, vol=0.3, saw_harmonics=False):
+            n_len = min(int(length_sec * sr), total_samples - start_idx)
+            if n_len <= 0: return
+            t = np.linspace(0, length_sec, n_len)
+            tone = np.sin(2 * np.pi * freq * t)
+            if saw_harmonics:
+                tone += 0.4 * np.sin(2 * np.pi * freq * 2 * t) + 0.2 * np.sin(2 * np.pi * freq * 3 * t)
+            env = np.exp(-3.0 * t)
+            audio[start_idx:start_idx + n_len] += tone * env * vol
+
+        chords = [
+            [220.0, 261.6, 329.6, 440.0],  # Am
+            [174.6, 220.0, 261.6, 349.2],  # F
+            [130.8, 164.8, 196.0, 261.6],  # C
+            [196.0, 246.9, 293.7, 392.0]   # G
+        ]
+        bass_notes = [55.0, 43.65, 65.4, 49.0]
+
+        for b in range(total_beats):
+            bt = b * spb
+            idx = int(bt * sr)
+            bar = b // 4
+            bar_beat = b % 4
+            chord = chords[(bar // 2) % len(chords)]
+            root = bass_notes[(bar // 2) % len(bass_notes)]
+
+            # 1. Intro (Bars 0-7, 0-15s): Chill low beat sway
+            if bar < 8:
+                add_synth_tone(idx, chord[bar_beat], spb * 1.5, vol=0.35)
+                if bar >= 4 and bar_beat in (1, 3):
+                    add_hihat(idx, vol=0.15)
+            # 2. Groove Introduction (Bars 8-15, 15-30s): Upbeat bounce starts
+            elif bar < 16:
+                if bar_beat in (0, 2): add_kick(idx, punch=0.9)
+                if bar_beat in (1, 3): add_snare(idx, snappy=0.7)
+                add_hihat(idx + int(spb * 0.5 * sr), vol=0.2)
+                add_synth_tone(idx, root, spb * 0.8, vol=0.3, saw_harmonics=True)
+                add_synth_tone(idx, chord[bar_beat], spb * 0.8, vol=0.25)
+            # 3. High-Energy Groove 1 (Bars 16-27, 30-53s): Driving rhythm snaps
+            elif bar < 28:
+                add_kick(idx, punch=1.0)
+                if bar_beat in (1, 3): add_snare(idx, snappy=1.0)
+                for s in range(4):
+                    add_hihat(idx + int(s * spb / 4 * sr), vol=(0.28 if s == 2 else 0.14))
+                add_synth_tone(idx, root, spb * 0.5, vol=0.4, saw_harmonics=True)
+                add_synth_tone(idx + int(spb * 0.5 * sr), root * 1.5, spb * 0.4, vol=0.3, saw_harmonics=True)
+            # 4. Climactic Drop 1 (Bars 28-35, 53-68s): Massive bass wave
+            elif bar < 36:
+                add_kick(idx, punch=1.2, sub_heavy=True)
+                if bar_beat in (1, 3):
+                    add_snare(idx, snappy=1.1)
+                    add_hihat(idx, vol=0.35, open_hat=True)
+                for s in range(4): add_hihat(idx + int(s * spb / 4 * sr), vol=0.2)
+                add_synth_tone(idx, root / 1.5, spb * 0.9, vol=0.5, saw_harmonics=True)
+                add_synth_tone(idx, chord[bar_beat] * 1.5, spb * 0.6, vol=0.35, saw_harmonics=True)
+            # 5. Flowy Ambient Breakdown (Bars 36-43, 68-83s): Flowing piano/strings
+            elif bar < 44:
+                add_synth_tone(idx, chord[bar_beat], spb * 2.0, vol=0.45)
+                if bar_beat == 0: add_synth_tone(idx, root * 2, spb * 3.5, vol=0.35)
+            # 6. Snare Roll Build-up (Bars 44-47, 83-91s): Rising excitement
+            elif bar < 48:
+                progress = (b - 44 * 4) / 16.0
+                sub_count = 2 if progress < 0.4 else (4 if progress < 0.8 else 8)
+                for s in range(sub_count):
+                    add_snare(idx + int(s * spb / sub_count * sr), snappy=0.3 + 0.7 * progress)
+                riser_f = 150 + 800 * progress
+                add_synth_tone(idx, riser_f, spb, vol=0.2 + 0.3 * progress, saw_harmonics=True)
+            # 7. Ultimate Climax Drop 2 (Bars 48-59, 91-114s): Peak dance performance!
+            elif bar < 60:
+                add_kick(idx, punch=1.25, sub_heavy=True)
+                add_snare(idx if bar_beat in (1, 3) else idx + int(spb * 0.5 * sr), snappy=1.0)
+                for s in range(4): add_hihat(idx + int(s * spb / 4 * sr), vol=0.25)
+                if bar_beat == 2: add_hihat(idx, vol=0.35, open_hat=True)
+                add_synth_tone(idx, root, spb * 0.8, vol=0.45, saw_harmonics=True)
+                add_synth_tone(idx, chord[(bar_beat + 1) % 4] * 2, spb * 0.5, vol=0.35, saw_harmonics=True)
+            # 8. Outro / Safe Cooldown (Bars 60-63, 114-120s)
+            else:
+                fade = max(0.0, 1.0 - (b - 60 * 4) / 16.0)
+                add_synth_tone(idx, chord[bar_beat], spb * 1.5, vol=0.35 * fade)
+
+        max_amp = np.max(np.abs(audio))
+        if max_amp > 0:
+            audio = (audio / max_amp) * 0.94
+
+        sf.write(output_path, audio, sr)
+        return output_path
+
